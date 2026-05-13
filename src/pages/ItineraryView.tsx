@@ -49,7 +49,6 @@ interface ItineraryViewProps {
 export default function ItineraryView({ itinerary: initialItinerary, onRestart }: ItineraryViewProps) {
   const { t } = useTranslation();
   const [itinerary, setItinerary] = useState<Itinerary>(initialItinerary);
-  const [showMap, setShowMap] = useState(false);
   const [completedActivities, setCompletedActivities] = useState<Set<string>>(new Set());
   const [isFavorite, setIsFavorite] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -337,24 +336,13 @@ export default function ItineraryView({ itinerary: initialItinerary, onRestart }
   };
 
   const allActivities = useMemo(() => {
-    const acts: { activity: string; description: string; location?: string }[] = [];
+    const acts: Activity[] = [];
     itinerary.days.forEach(day => {
       day.activities.forEach(activity => {
         acts.push(activity);
       });
     });
-    return acts.slice(0, 8); // Display first 8 points for clarity
-  }, [itinerary]);
-
-  const allLocations = useMemo(() => {
-    const locs: string[] = [];
-    itinerary.days.forEach(day => {
-      day.activities.forEach(activity => {
-        if (activity.location) locs.push(`${activity.location}, ${itinerary.destination}`);
-        else locs.push(`${activity.activity}, ${itinerary.destination}`);
-      });
-    });
-    return Array.from(new Set(locs)).slice(0, 8);
+    return acts;
   }, [itinerary]);
 
   useEffect(() => {
@@ -420,19 +408,6 @@ export default function ItineraryView({ itinerary: initialItinerary, onRestart }
     downloadAnchorNode.remove();
     URL.revokeObjectURL(url);
   };
-
-  const selectedMarkerId = useMemo(() => {
-    if (!highlightedId) return null;
-    let flatIdx = -1;
-    let found = false;
-    itinerary.days.forEach((day, dIdx) => {
-      day.activities.forEach((_, aIdx) => {
-        if (!found) flatIdx++;
-        if (`${dIdx}-${aIdx}` === highlightedId) found = true;
-      });
-    });
-    return found ? `marker-${flatIdx}` : null;
-  }, [highlightedId, itinerary.days]);
 
   return (
     <div className={cn("max-w-7xl mx-auto px-6 md:px-8 py-20 md:py-40 space-y-20", isPhiMode && "phi-theme")}>
@@ -843,10 +818,10 @@ export default function ItineraryView({ itinerary: initialItinerary, onRestart }
                                           className={cn(
                                             "w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-500 shadow-sm",
                                             highlightedId === id 
-                                              ? "bg-luxury-gold text-white shadow-luxury-gold/20" 
+                                              ? "bg-luxury-espresso text-luxury-ivory" 
                                               : "bg-luxury-ivory text-luxury-cacao/40 hover:text-luxury-espresso hover:bg-luxury-beige/30"
                                           )}
-                                          title={t('itinerary.showOnMap')}
+                                          title={t('itinerary.atlas')}
                                         >
                                           <MapIcon size={16} />
                                         </motion.button>
@@ -1141,41 +1116,39 @@ export default function ItineraryView({ itinerary: initialItinerary, onRestart }
                 <h2 className="text-5xl font-serif font-bold text-luxury-espresso">{isPhiMode ? "Phi" : t('itinerary.mapHeader')}</h2>
                 <p className="text-sm text-luxury-cacao/60 font-medium italic">{isPhiMode ? "Phi" : t('itinerary.spatialDesc')}</p>
               </div>
-              <div className="flex items-center gap-3 px-6 py-3 bg-luxury-bg rounded-full border border-luxury-beige/30">
-                <MapIcon size={14} className="text-luxury-espresso" />
-                <span className="text-[10px] font-bold text-luxury-espresso uppercase tracking-widest">{isPhiMode ? "Phi" : `${allLocations.length} ${t('itinerary.points')}`}</span>
-              </div>
             </div>
             
-              <MapView 
-                locations={allLocations} 
-                destination={itinerary.destination} 
-                activities={allActivities} 
-                selectedId={selectedMarkerId}
-                onPointSelect={(idx) => {
-                  if (idx === -1) {
-                    setHighlightedId(null);
-                    return;
-                  }
-                  // Determine day index and activity index from flat allActivities list
-                  let count = 0;
-                  itinerary.days.forEach((day, dIdx) => {
-                    day.activities.forEach((_, aIdx) => {
-                      if (count === idx) {
-                        const id = `${dIdx}-${aIdx}`;
-                        setHighlightedId(id);
-                        
-                        // Find element and scroll to it
-                        const el = document.getElementById(`activity-${dIdx}-${aIdx}`);
-                        if (el) {
-                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                      }
-                      count++;
-                    });
+            <MapView 
+              destination={itinerary.destination} 
+              activities={allActivities} 
+              selectedId={highlightedId ? `marker-${allActivities.findIndex((a, i) => {
+                let count = 0;
+                let found = false;
+                itinerary.days.forEach((day, dIdx) => {
+                  day.activities.forEach((_, aIdx) => {
+                    if (`${dIdx}-${aIdx}` === highlightedId) {
+                      if (count === i) found = true;
+                    }
+                    count++;
                   });
-                }}
-              />
+                });
+                return found;
+              })}` : null}
+              onPointSelect={(markerId) => {
+                const idx = parseInt(markerId.split('-')[1]);
+                let count = 0;
+                itinerary.days.forEach((day, dIdx) => {
+                  day.activities.forEach((_, aIdx) => {
+                    if (count === idx) {
+                      setHighlightedId(`${dIdx}-${aIdx}`);
+                      const el = document.getElementById(`activity-${dIdx}-${aIdx}`);
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    count++;
+                  });
+                });
+              }}
+            />
           </div>
         </div>
 
