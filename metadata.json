@@ -1,0 +1,10 @@
+{
+  "name": "Remix: Plantripgo",
+  "description": "A sophisticated AI-powered travel planner that crafts personalized itineraries with smart insights and interactive schedules.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "AI Trip Planning",
+    "Interactive Itineraries",
+    "Smart Budgeting"
+  ]
+}
